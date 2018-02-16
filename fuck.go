@@ -29,24 +29,28 @@ func main() {
 
 	c := Context{}
 	for length := len(code); c.index < length; {
-		c = step(code, c)
+		c, err = step(code, c)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(2)
+		}
 	}
 }
 
-func step(code []string, c Context) Context {
+func step(code []string, c Context) (Context, error) {
 	if c.pointer >= len(c.memory) {
 		c.memory = append(c.memory, make([]int, c.pointer-len(c.memory)+1)...)
 	}
 	length := len(code)
 	op := code[c.index]
+	var err error = nil
 	switch op {
 	case ">":
 		c.pointer++
 	case "<":
 		c.pointer--
 		if c.pointer < 0 {
-			fmt.Fprint(os.Stderr, "Error: Pointer goes negative\n")
-			os.Exit(2)
+			err = fmt.Errorf("Error: Pointer goes negative")
 		}
 	case "+":
 		c.memory[c.pointer] = (c.memory[c.pointer] + 1) & 0xff
@@ -58,8 +62,8 @@ func step(code []string, c Context) Context {
 			c.index++
 			for ; ; c.index++ {
 				if c.index >= length {
-					fmt.Fprint(os.Stderr, "Error: ] Not found\n")
-					os.Exit(2)
+					err = fmt.Errorf("Error: ] Not found")
+					break
 				} else if code[c.index] == "]" {
 					if count == 0 {
 						break
@@ -77,8 +81,8 @@ func step(code []string, c Context) Context {
 			c.index--
 			for ; ; c.index-- {
 				if c.index < 0 {
-					fmt.Fprint(os.Stderr, "Error: [ Not found\n")
-					os.Exit(2)
+					err = fmt.Errorf("Error: [ Not found\n")
+					break
 				} else if code[c.index] == "[" {
 					if count == 0 {
 						break
@@ -98,5 +102,5 @@ func step(code []string, c Context) Context {
 		c.memory[c.pointer] = int(input[0]) & 0xff
 	}
 	c.index++
-	return c
+	return c, err
 }
