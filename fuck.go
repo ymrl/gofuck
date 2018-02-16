@@ -14,9 +14,37 @@ type Context struct {
 }
 
 func main() {
-	fp, err := os.Open(os.Args[1])
+	if len(os.Args) >= 2 {
+		execFile(os.Args[1])
+	} else {
+		execRepl()
+	}
+}
+
+func execRepl() {
+	c := Context{}
+	var code []string
+	for {
+		fmt.Print("brainfuck> ")
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		code = append(code, strings.Split(input, "")...)
+		var err error
+		for length := len(code); c.index < length; {
+			c, err = step(code, c)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s\n", err)
+				break
+			}
+		}
+		fmt.Print("\n")
+	}
+}
+
+func execFile(path string) {
+	fp, err := os.Open(path)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Failed reading %s\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "Error: Failed reading %s\n", path)
 		os.Exit(1)
 	}
 	defer fp.Close()
@@ -35,6 +63,7 @@ func main() {
 			os.Exit(2)
 		}
 	}
+
 }
 
 func step(code []string, c Context) (Context, error) {
@@ -51,6 +80,7 @@ func step(code []string, c Context) (Context, error) {
 		c.pointer--
 		if c.pointer < 0 {
 			err = fmt.Errorf("Error: Pointer goes negative")
+			c.pointer = 0
 		}
 	case "+":
 		c.memory[c.pointer] = (c.memory[c.pointer] + 1) & 0xff
