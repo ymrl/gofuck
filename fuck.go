@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+type Context struct {
+	pointer int
+	index   int
+	memory  []int
+}
+
 func main() {
 	fp, err := os.Open(os.Args[1])
 	if err != nil {
@@ -21,76 +27,76 @@ func main() {
 		code = append(code, strings.Split(scanner.Text(), "")...)
 	}
 
-	var pointer int = 0
-	var memory []int
-	for length, index := len(code), 0; index < length; index++ {
-		index, pointer, memory = step(code, index, pointer, memory)
+	c := Context{}
+	for length := len(code); c.index < length; {
+		c = step(code, c)
 	}
 }
 
-func step(code []string, index int, pointer int, memory []int) (int, int, []int) {
-	if pointer >= len(memory) {
-		memory = append(memory, make([]int, pointer-len(memory)+1)...)
+func step(code []string, c Context) Context {
+	if c.pointer >= len(c.memory) {
+		c.memory = append(c.memory, make([]int, c.pointer-len(c.memory)+1)...)
 	}
 	length := len(code)
-	op := code[index]
+	op := code[c.index]
 	switch op {
 	case ">":
-		pointer++
+		c.pointer++
 	case "<":
-		pointer--
-		if pointer < 0 {
+		c.pointer--
+		if c.pointer < 0 {
 			fmt.Fprint(os.Stderr, "Error: Pointer goes negative\n")
 			os.Exit(2)
 		}
 	case "+":
-		memory[pointer] = (memory[pointer] + 1) & 0xff
+		c.memory[c.pointer] = (c.memory[c.pointer] + 1) & 0xff
 	case "-":
-		memory[pointer] = (memory[pointer] - 1) & 0xff
+		c.memory[c.pointer] = (c.memory[c.pointer] - 1) & 0xff
 	case "[":
-		if memory[pointer] == 0 {
+		if c.memory[c.pointer] == 0 {
 			count := 0
-			index++
-			for ; ; index++ {
-				if index >= length {
+			c.index++
+			for ; ; c.index++ {
+				if c.index >= length {
 					fmt.Fprint(os.Stderr, "Error: ] Not found\n")
 					os.Exit(2)
-				} else if code[index] == "]" {
+				} else if code[c.index] == "]" {
 					if count == 0 {
 						break
 					} else {
 						count--
 					}
-				} else if code[index] == "[" {
+				} else if code[c.index] == "[" {
 					count++
 				}
 			}
 		}
 	case "]":
-		if memory[pointer] != 0 {
+		if c.memory[c.pointer] != 0 {
 			count := 0
-			index--
-			for ; ; index-- {
-				if index < 0 {
+			c.index--
+			for ; ; c.index-- {
+				if c.index < 0 {
 					fmt.Fprint(os.Stderr, "Error: [ Not found\n")
 					os.Exit(2)
-				} else if code[index] == "[" {
+				} else if code[c.index] == "[" {
 					if count == 0 {
 						break
 					} else {
 						count--
 					}
-				} else if code[index] == "]" {
+				} else if code[c.index] == "]" {
 					count++
 				}
 			}
 		}
 	case ".":
-		fmt.Print(string(memory[pointer]))
+		fmt.Print(string(c.memory[c.pointer]))
 	case ",":
 		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
-		memory[pointer] = int(input[0]) & 0xff
+		c.memory[c.pointer] = int(input[0]) & 0xff
 	}
-	return index, pointer, memory
+	c.index++
+	return c
 }
